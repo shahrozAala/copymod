@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { deleteBuild } from "../actions";
+import { BuildActions } from "@/components/builds/BuildActions";
+import { StatusBadge } from "@/components/builds/StatusBadge";
+import type { BuildStatus } from "../actions";
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; status_updated?: string }>;
 };
 
 export default async function BuildDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, status_updated } = await searchParams;
   const supabase = await createClient();
 
   const { data: build } = await supabase
@@ -22,8 +24,6 @@ export default async function BuildDetailPage({ params, searchParams }: Props) {
   if (!build) {
     notFound();
   }
-
-  const deleteBuildWithId = deleteBuild.bind(null, id);
 
   return (
     <main className="min-h-screen p-8">
@@ -40,24 +40,21 @@ export default async function BuildDetailPage({ params, searchParams }: Props) {
           </div>
         )}
 
-        <div className="flex justify-between items-start mb-6">
-          <h1 className="text-3xl font-bold">{build.title}</h1>
-          <div className="flex gap-2">
-            <Link
-              href={`/builds/${build.id}/edit`}
-              className="bg-gray-100 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-            >
-              Edit
-            </Link>
-            <form action={deleteBuildWithId}>
-              <button
-                type="submit"
-                className="bg-red-100 text-red-700 py-2 px-4 rounded-lg font-medium hover:bg-red-200 transition-colors"
-              >
-                Delete
-              </button>
-            </form>
+        {status_updated && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
+            Status updated successfully!
           </div>
+        )}
+
+        <div className="flex justify-between items-start mb-6">
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-bold">{build.title}</h1>
+            <StatusBadge status={build.status as BuildStatus} />
+          </div>
+          <BuildActions
+            buildId={build.id}
+            currentStatus={build.status as BuildStatus}
+          />
         </div>
 
         {build.description && (
@@ -66,10 +63,6 @@ export default async function BuildDetailPage({ params, searchParams }: Props) {
 
         <div className="border-t pt-6">
           <dl className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <dt className="text-gray-500">Status</dt>
-              <dd className="font-medium capitalize">{build.status}</dd>
-            </div>
             <div>
               <dt className="text-gray-500">Created</dt>
               <dd className="font-medium">

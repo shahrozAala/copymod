@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { BuildActions } from "@/components/builds/BuildActions";
+import { StatusBadge } from "@/components/builds/StatusBadge";
+import type { BuildStatus } from "./actions";
 
 type Props = {
-  searchParams: Promise<{ created?: string; deleted?: string }>;
+  searchParams: Promise<{ created?: string; deleted?: string; status_updated?: string }>;
 };
 
 export default async function BuildsPage({ searchParams }: Props) {
-  const { created, deleted } = await searchParams;
+  const { created, deleted, status_updated } = await searchParams;
   const supabase = await createClient();
 
   const { data: builds } = await supabase
@@ -42,28 +45,37 @@ export default async function BuildsPage({ searchParams }: Props) {
         {builds && builds.length > 0 ? (
           <div className="grid gap-4">
             {builds.map((build) => (
-              <Link
+              <div
                 key={build.id}
-                href={`/builds/${build.id}`}
-                className="block p-6 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all"
+                className="p-6 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all"
               >
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h2 className="text-xl font-semibold">{build.title}</h2>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Link
+                        href={`/builds/${build.id}`}
+                        className="text-xl font-semibold hover:text-blue-600 transition-colors truncate"
+                      >
+                        {build.title}
+                      </Link>
+                      <StatusBadge status={build.status as BuildStatus} />
+                    </div>
                     {build.description && (
-                      <p className="text-gray-600 mt-2 line-clamp-2">
+                      <p className="text-gray-600 line-clamp-2">
                         {build.description}
                       </p>
                     )}
+                    <p className="text-sm text-gray-400 mt-2">
+                      Created {new Date(build.created_at).toLocaleDateString()}
+                    </p>
                   </div>
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded capitalize">
-                    {build.status}
-                  </span>
+                  <BuildActions
+                    buildId={build.id}
+                    currentStatus={build.status as BuildStatus}
+                    showView
+                  />
                 </div>
-                <p className="text-sm text-gray-400 mt-4">
-                  Created {new Date(build.created_at).toLocaleDateString()}
-                </p>
-              </Link>
+              </div>
             ))}
           </div>
         ) : (

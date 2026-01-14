@@ -7,6 +7,8 @@ import { redirect } from "next/navigation";
 export async function createBuild(formData: FormData): Promise<void> {
   const supabase = await createClient();
 
+  const { data: { user } } = await supabase.auth.getUser();
+
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
 
@@ -15,7 +17,7 @@ export async function createBuild(formData: FormData): Promise<void> {
   }
 
   const { error } = await supabase.from("car_builds").insert({
-    user_id: null,
+    user_id: user?.id ?? null,
     title: title.trim(),
     description: description?.trim() || null,
     status: "draft",
@@ -68,4 +70,26 @@ export async function deleteBuild(id: string): Promise<void> {
 
   revalidatePath("/builds");
   redirect("/builds?deleted=true");
+}
+
+export type BuildStatus = "draft" | "active" | "archived";
+
+export async function updateBuildStatus(id: string, status: BuildStatus): Promise<void> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("car_builds")
+    .update({
+      status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    redirect(`/builds/${id}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/builds/${id}`);
+  revalidatePath("/builds");
+  redirect(`/builds/${id}?status_updated=true`);
 }
